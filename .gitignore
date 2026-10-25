@@ -1,0 +1,65 @@
+# macOS and editor noise
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.vscode/
+.idea/
+*.swp
+*.swo
+*.xcuserstate
+
+# Build products and generated binaries
+build/
+dist/
+DerivedData/
+*.app/
+*.dmg
+*.pkg
+*.xcarchive/
+*.dSYM/
+*.framework/
+*.bundle/
+*.dylib
+*.so
+*.dll
+*.exe
+*.o
+*.a
+
+# Game installations and user data
+The Sims 3/
+The Sims 3.app/
+**/The Sims 3.app/
+**/Electronic Arts/The Sims 3/
+**/Electronic Arts/The Sims 3/**
+*.package
+*.sims3pack
+*.dbc
+*.ebc
+*.world
+*.nhd
+*.sims3
+*.sims3.backup
+
+# Dumps and raw diagnostics; share sanitized summaries only
+*.dmp
+*.core
+*.memgraph
+*.spindump
+*.crash
+*.ips
+*.trace
+captures/
+diagnostics/raw/
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.p12
+*.mobileprovision
+*.provisionprofile
+*.pem
+*.key
+*.p8
