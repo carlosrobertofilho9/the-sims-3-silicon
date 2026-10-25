@@ -1,5 +1,7 @@
 # The Sims 3 Silicon
 
+![Banner comunitário não oficial](assets/banner-sunset.png)
+
 **An unofficial community research and preservation project.** Not affiliated with, endorsed by, or sponsored by Electronic Arts or Maxis.
 
 The Sims 3 and related names are trademarks of their respective owners. This repository contains no game files and grants no rights to game content.
@@ -12,6 +14,7 @@ We share original documentation, measurement methods, and original tools or code
 
 ## Scope and limits
 
+- This repository includes one project-owner-provided presentation banner at [assets/banner-sunset.png](assets/banner-sunset.png). It is outside the source-code license; this exception applies only to that image.
 - Do not submit or distribute game binaries, source code, extracted assets, audio, video, textures, fonts, save files, installers, keys, modified executables, or other proprietary game materials.
 - Do not submit decompiled or disassembled game code, copied proprietary code, or raw diagnostic captures that may contain game content or personal information.
 - This project does not provide or seek ways to bypass DRM, license checks, or other access controls.

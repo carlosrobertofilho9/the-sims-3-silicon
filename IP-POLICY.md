@@ -2,6 +2,10 @@
 
 The Sims 3, its characters, artwork, audio, video, code, names, and other game materials belong to their respective rights holders. This is an independent community research project, not affiliated with or endorsed by Electronic Arts or Maxis.
 
+## Project banner
+
+This repository includes one project-owner-provided presentation image at assets/banner-sunset.png. It is not covered by LICENSE-CODE.md. Its inclusion is a limited exception for this banner and does not authorize other game assets or content. All rights in third-party marks and material remain with their respective owners; the project does not claim affiliation or endorsement.
+
 ## Not accepted
 
 Do not submit, commit, link to, or distribute game executables, libraries, source code, installers, patches, modified copies, extracted or recreated game assets, save files, keys, account data, decompiled or disassembled proprietary code, substantial copied code, or raw diagnostic captures that may contain game content. Do not submit instructions or tools intended to bypass DRM, license checks, or other access controls.

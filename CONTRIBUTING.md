@@ -17,6 +17,8 @@ Thanks for helping with responsible preservation and compatibility research.
 4. Remove personal information, account identifiers, installation paths, serials, product keys, and machine-specific secrets.
 5. Do not attach game files, screenshots, raw logs, traces, dumps, or crash reports. Share concise, sanitized observations instead.
 
+The existing project banner is a narrowly documented exception in [IP-POLICY.md](IP-POLICY.md); do not treat it as permission to add more game imagery or assets.
+
 For reproducibility, include the macOS version, Apple silicon model, game version as displayed locally, workload, and measurement method when relevant. Separate observed facts from hypotheses. Keep pull requests focused and do not claim compatibility or performance gains without evidence.
 
 By contributing original source code, you agree it is offered under [LICENSE-CODE.md](LICENSE-CODE.md). This grants no rights to your unrelated work or any third-party or game material.
