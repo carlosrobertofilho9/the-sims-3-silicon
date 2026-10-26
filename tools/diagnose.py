@@ -22,7 +22,7 @@ from typing import Any
 SCHEMA_VERSION = 1
 SAFE_DLL_RE = re.compile(r"^[A-Za-z0-9_.+\-]{1,128}$")
 WINE_VERSION_RE = re.compile(rb"(?:wine[- ]|wine version\s+)([0-9]+\.[0-9]+(?:\.[0-9]+)?)", re.IGNORECASE)
-PROCESS_NAMES = {"wineskinlauncher", "ts3", "ts3w", "sims3launcher"}
+PROCESS_NAMES = {"wineskinlauncher", "ts3", "ts3w", "sims3launcher", "thesims3"}
 
 
 class PEFormatError(ValueError):
@@ -283,11 +283,149 @@ def _signature_status(app: Path) -> dict[str, Any]:
     return result
 
 
-def _matching_failure_records() -> dict[str, Any]:
-    """Summarize local DiagnosticReports metadata without returning source text or paths."""
-    roots = [Path.home() / "Library" / "Logs" / "DiagnosticReports", Path("/Library/Logs/DiagnosticReports")]
+def _decode_json_documents(raw: str) -> tuple[list[dict[str, Any]], bool]:
+    """Decode .ips JSON objects and retain a valid header if the body is damaged."""
+    try:
+        value = json.loads(raw)
+        return ([value], True) if isinstance(value, dict) else ([], False)
+    except (json.JSONDecodeError, ValueError):
+        pass
+    documents = []
+    decoder = json.JSONDecoder()
+    position = 0
+    while position < len(raw):
+        while position < len(raw) and raw[position].isspace():
+            position += 1
+        if position == len(raw):
+            break
+        try:
+            value, position = decoder.raw_decode(raw, position)
+        except (json.JSONDecodeError, ValueError):
+            return documents, False
+        if not isinstance(value, dict):
+            return documents, False
+        documents.append(value)
+    return documents, bool(documents)
+
+
+def _json_documents(raw: str) -> list[dict[str, Any]] | None:
+    """Read either one JSON object or separated header/body JSON objects."""
+    documents, complete = _decode_json_documents(raw)
+    return documents if complete else None
+
+
+def _walk_dicts(value: Any):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _walk_dicts(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_dicts(child)
+
+
+def _normalized_process(value: str) -> str:
+    basename = value.replace("\\", "/").rsplit("/", 1)[-1]
+    if "." in basename:
+        basename = basename.rsplit(".", 1)[0]
+    return re.sub(r"[^a-z0-9]", "", basename.lower())
+
+
+def _is_known_process(value: str) -> bool:
+    normalized = _normalized_process(value)
+    return normalized in PROCESS_NAMES or normalized.startswith("thesims3")
+
+
+def _filename_matches_process(filename: str) -> bool:
+    basename = filename.replace("\\", "/").rsplit("/", 1)[-1]
+    stem = basename.rsplit(".", 1)[0]
+    candidate = re.split(r"[_\-.]", stem, maxsplit=1)[0]
+    return _is_known_process(candidate)
+
+
+def _matches_failure_record(documents: list[dict[str, Any]], filename: str, bundle_identifier: str | None) -> bool:
+    if bundle_identifier:
+        for document in documents:
+            for item in _walk_dicts(document):
+                for key in ("bundleID", "bundle_id", "CFBundleIdentifier", "identifier"):
+                    value = item.get(key)
+                    if isinstance(value, str) and value == bundle_identifier:
+                        return True
+    candidates = []
+    for document in documents:
+        for item in _walk_dicts(document):
+            for key in ("app_name", "procName", "processName", "process", "name", "Process", "CFBundleName"):
+                value = item.get(key)
+                if isinstance(value, str):
+                    candidates.append(value)
+    if any(_is_known_process(value) for value in candidates):
+        return True
+    return _filename_matches_process(filename)
+
+
+def _structured_failure_category(documents: list[dict[str, Any]]) -> str:
+    exceptions = []
+    terminations = []
+    for document in documents:
+        for item in _walk_dicts(document):
+            if isinstance(item.get("exception"), dict):
+                exceptions.append(item["exception"])
+            if isinstance(item.get("termination"), dict):
+                terminations.append(item["termination"])
+    exception_types = {str(item.get("type", "")).upper() for item in exceptions}
+    signals = {str(item.get("signal", "")).upper() for item in exceptions}
+    namespaces = {str(item.get("namespace", "")).upper() for item in terminations}
+    details = " ".join(
+        str(item.get(key, ""))
+        for item in terminations
+        for key in ("indicator", "reason", "code", "description")
+    ).lower()
+    if "CODESIGNING" in namespaces or "code signature invalid" in details or "invalid signature" in details:
+        return "signature_or_seal_failure"
+    if "EXC_BAD_ACCESS" in exception_types or signals.intersection({"SIGSEGV", "SIGBUS"}):
+        return "memory_access_failure"
+    if "SIGABRT" in signals:
+        return "aborted_process"
+    if exceptions:
+        return "other_exception"
+    if terminations:
+        return "other_termination"
+    return "structured_failure_unclassified"
+
+
+def _crash_document(raw: str) -> list[dict[str, Any]]:
+    """Extract only stable exception/termination fields from legacy .crash text."""
+    process = re.search(r"(?im)^Process:\s*(.*?)\s+\[\d+\]", raw)
+    exception = re.search(r"(?im)^Exception Type:\s*([^\r\n]+)", raw)
+    termination = re.search(r"(?im)^Termination Reason:\s*([^\r\n]+)", raw)
+    document: dict[str, Any] = {}
+    if process:
+        document["procName"] = process.group(1).strip()
+    if exception:
+        document["exception"] = {"type": exception.group(1).strip()}
+    if termination:
+        document["termination"] = {"reason": termination.group(1).strip()}
+    return [document] if document else []
+
+
+def _bundle_identifier(plist_path: Path) -> str | None:
+    """Read an identifier solely for local record matching; never return it in reports."""
+    try:
+        with plist_path.open("rb") as f:
+            value = plistlib.load(f).get("CFBundleIdentifier")
+        return value if isinstance(value, str) else None
+    except (OSError, plistlib.InvalidFileException, ValueError, TypeError):
+        return None
+
+
+def _matching_failure_records(
+    bundle_identifier: str | None = None,
+    roots: list[Path] | None = None,
+) -> dict[str, Any]:
+    """Summarize local failure records without returning source text, IDs, or paths."""
+    roots = roots or [Path.home() / "Library" / "Logs" / "DiagnosticReports", Path("/Library/Logs/DiagnosticReports")]
     categories: Counter[str] = Counter()
-    count = 0
+    count = unreadable_count = 0
     scanned = False
     for root in roots:
         try:
@@ -302,48 +440,26 @@ def _matching_failure_records() -> dict[str, Any]:
                 raw = path.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
-            matched = False
-            metadata: dict[str, Any] = {}
             if path.suffix == ".ips":
-                try:
-                    parsed = json.loads(raw)
-                    if isinstance(parsed, dict):
-                        metadata = parsed
-                except (json.JSONDecodeError, ValueError):
-                    metadata = {}
-            candidates: list[str] = []
-            for key in ("app_name", "procName", "process", "name", "Process"):
-                value = metadata.get(key)
-                if isinstance(value, str):
-                    candidates.append(value)
-            for nested_key in ("process", "app", "bundleInfo"):
-                nested = metadata.get(nested_key)
-                if isinstance(nested, dict):
-                    candidates.extend(str(nested.get(k, "")) for k in ("name", "procName", "CFBundleName"))
-            if any(Path(value).stem.lower() in PROCESS_NAMES for value in candidates if value):
-                matched = True
-            if not matched:
-                for process_name in PROCESS_NAMES:
-                    if re.search(rf"(?im)^Process:\s*{re.escape(process_name)}(?:\s|\[|$)", raw):
-                        matched = True
-                        break
-            if not matched:
+                documents, readable = _decode_json_documents(raw)
+            else:
+                documents = _crash_document(raw)
+                readable = bool(documents)
+            if not readable:
+                # Match a valid header or filename, but never share any damaged content.
+                if _matches_failure_record(documents, path.stem, bundle_identifier):
+                    count += 1
+                    unreadable_count += 1
+                    categories["unreadable_record"] += 1
+                continue
+            if not _matches_failure_record(documents, path.stem, bundle_identifier):
                 continue
             count += 1
-            lower = raw.lower()
-            if "code signature invalid" in lower or "invalid info.plist" in lower or "signature" in lower and "invalid" in lower:
-                categories["signature_or_seal_failure"] += 1
-            elif "exc_bad_access" in lower or "sigsegv" in lower:
-                categories["memory_access_failure"] += 1
-            elif "sigabrt" in lower or "abort trap" in lower:
-                categories["aborted_process"] += 1
-            elif "termination reason" in lower or "exception type" in lower:
-                categories["other_recorded_failure"] += 1
-            else:
-                categories["failure_record_without_classification"] += 1
+            categories[_structured_failure_category(documents)] += 1
     return {
         "source_scope": "local macOS DiagnosticReports only",
         "matching_record_count": count,
+        "unreadable_matching_record_count": unreadable_count,
         "summary_categories": dict(sorted(categories.items())),
         "raw_contents_included": False,
         "scan_available": scanned,
@@ -412,9 +528,10 @@ def diagnose_app(app: Path) -> dict[str, Any]:
     dx9_names = [name for name in observed_imports if name == "d3d9.dll" or name.startswith("d3dx9_") or name in {"dinput.dll", "dinput8.dll"}]
 
     signature = _signature_status(app) if bundle_found else {"status": "unavailable", "findings": []}
-    failures = _matching_failure_records() if bundle_found and sys.platform == "darwin" else {
+    failures = _matching_failure_records(_bundle_identifier(plist_path)) if bundle_found and sys.platform == "darwin" else {
         "source_scope": "local macOS DiagnosticReports only",
         "matching_record_count": 0,
+        "unreadable_matching_record_count": 0,
         "summary_categories": {},
         "raw_contents_included": False,
         "scan_available": False,
@@ -518,6 +635,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Wineskin: {wrapper['version'] or 'não identificada'}; Wine: {wrapper['wine_version'] or 'não identificado'}",
         f"- Assinatura: {report['signature']['status']}",
         f"- Registros locais correspondentes: {records['matching_record_count']} (DiagnosticReports; conteúdo bruto omitido)",
+        f"- Categorias de falha: {', '.join(f'{name}: {count}' for name, count in records['summary_categories'].items()) or 'nenhuma'}",
+        f"- Registros correspondentes ilegíveis: {records.get('unreadable_matching_record_count', 0)}",
         "",
         "## Executáveis PE",
         "",

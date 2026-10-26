@@ -133,8 +133,11 @@
   },
   "failure_records": {
     "source_scope": "local macOS DiagnosticReports only",
-    "matching_record_count": 0,
-    "summary_categories": {},
+    "matching_record_count": 9,
+    "unreadable_matching_record_count": 0,
+    "summary_categories": {
+      "signature_or_seal_failure": 9
+    },
     "raw_contents_included": false,
     "scan_available": true
   },
@@ -154,7 +157,7 @@
       "The verifier reported that the sealed Info.plist does not match the signed bundle state.",
       "The verifier reported that the sealed resource directory does not match the signed bundle state.",
       "macOS execution policy assessment rejected the application bundle.",
-      "No matching local DiagnosticReports records were found for the recognized launcher/game processes."
+      "9 matching local DiagnosticReports records were summarized by category only."
     ],
     "hypotheses": [
       "Launching this Intel-only wrapper on Apple silicon may require Rosetta 2; availability and a real launch were not tested.",
