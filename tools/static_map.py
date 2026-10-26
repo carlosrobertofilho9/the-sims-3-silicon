@@ -505,18 +505,33 @@ def collect_app(
             load_record.get("normalized_result", {}).get("artifact", {}).get("sha256") if load_record else None,
         ]
         tool_shas = [str(value) for value in tool_shas if value]
-        stable = after_sha == before_sha and len(tool_shas) == 2 and len(set([before_sha, after_sha, *tool_shas])) == 1
+        file_changed = after_sha != before_sha
+        query_mismatch = any(value not in {before_sha, after_sha} for value in tool_shas)
+        query_incomplete = len(tool_shas) != 2
+        stable = not file_changed and not query_mismatch and not query_incomplete
+        if stable:
+            identity_status = "stable"
+        elif file_changed:
+            identity_status = "aborted_file_changed"
+        elif query_mismatch:
+            identity_status = "aborted_rea_identity_mismatch"
+        else:
+            identity_status = "query_incomplete"
         item["identity_stability"] = {
-            "status": "stable" if stable else "aborted_file_changed_or_query_incomplete",
+            "status": identity_status,
             "before_sha256": before_sha,
             "after_sha256": after_sha,
             "rea_query_sha256": tool_shas,
         }
-        if not stable:
+        if file_changed or query_mismatch:
             item["imports"] = {"status": "aborted", "evidence_id": item.get("imports", {}).get("evidence_id"), "reason": "The source digest changed or one REA query did not bind to the same artifact; imports were withheld from consolidation."}
             item["loader"] = {"status": "aborted", "evidence_id": item.get("loader", {}).get("evidence_id"), "reason": "The source digest changed or one REA query did not bind to the same artifact; loader observations were withheld from consolidation."}
             item["status"] = "inconsistent"
-            item["limitations"].append("Consolidation stopped because both REA queries must identify the same unchanged executable bytes.")
+            reason = "the file changed during collection" if file_changed else "REA reported a different artifact digest"
+            item["limitations"].append(f"Consolidation stopped because {reason}.")
+        elif query_incomplete:
+            item["status"] = "partial"
+            item["limitations"].append("Identity verification is incomplete because one or more REA queries did not return an artifact digest.")
         elif item["pe_headers"]["status"] != "complete" or item["imports"].get("status") != "complete" or item["loader"].get("status") != "complete":
             item["status"] = "partial"
         else:

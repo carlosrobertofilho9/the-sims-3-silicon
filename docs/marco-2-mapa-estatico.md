@@ -204,10 +204,8 @@ Os argumentos podem apontar para qualquer instalação local; o JSON e o Markdow
 - REA: A tabela e a contagem SafeSEH são reportadas apenas para PE32; campos homônimos em estruturas PE32+ não são uma tabela SafeSEH.
 - REA: Os campos TLS e load config reproduzem diretórios do PE; não provam que um callback rode ou que o carregador aplique uma mitigação.
 
-## Prioridade para o marco 3
+## Próximo objetivo: Marco 3 — abrir o launcher original
 
-**Prioridade:** Implementar um carregador PE32 mínimo e um modelo de memória de processo com fixtures sintéticas antes de ampliar o subconjunto de instruções.
+O objetivo prático é fazer aparecer a janela do launcher original do The Sims 3. O experimento com carregador PE sintético pode continuar como trabalho de laboratório, mas não responde a essa pergunta nem é critério para concluir este marco.
 
-Os três alvos são PE32 x86, enquanto o laboratório aceita apenas vetores de bytes; faltam mapeamento de seções, resolução de imports, preparação TLS, permissões de página e fronteiras de API. Todos têm diretório de relocação ausente e o sinalizador COFF de relocações removidas; para eles, a base preferida é uma restrição do carregamento. A ampla tabela declarada do runtime torna as fronteiras do loader/API necessárias para experimentos representativos.
-
-**Experimento pequeno:** Como teste controlado (os três executáveis estudados não têm diretório de relocação), montar uma fixture PE32 sintética com seções .text e .data, uma relocação HIGHLOW, um import por nome e outro por ordinal; mapeá-la na memória simulada em uma base diferente e conferir RVA de entrada, valor relocável, IAT e permissões de leitura/escrita/execução sem rodar o código.
+A primeira tentativa controlada de abrir o aplicativo instalado foi recusada pelo macOS antes de uma janela aparecer. O diagnóstico local confirmou que a assinatura do pacote está inválida e que o macOS rejeita sua execução; o Rosetta está instalado. Ainda não observamos o Wine nem o launcher Windows funcionando. O registro e os próximos passos estão em [Marco 3 — abrir o launcher original](marco-3-launcher.md).

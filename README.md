@@ -42,6 +42,16 @@ An original Python diagnostic and synthetic ARM64 memory-boundary lab make this 
 
 The ARM64 C++17 lab now interprets a small, documented x86 subset over original byte sequences with separate synthetic code and data. It covers register/immediate moves, little-endian data moves, 32-bit arithmetic, ZF and short relative branches; it does not load PE or game code. The `.ips` parser now reads both single-object and header/body JSON reports and summarizes nine matching local code-signing failures. See [Marco 1: interpretador e reprodução](docs/marco-1-x86-subset.md).
 
+### Marco 2 — static executable map
+
+The static map for the three original Windows executables is complete. See [Marco 2](docs/marco-2-mapa-estatico.md).
+
+### Marco 3 — open the original launcher
+
+The goal is to make the original launcher window appear; the game does not need to start yet. Our first attempt was rejected by macOS before any window appeared. The local diagnostic reports an invalid app signature, while Rosetta is installed. This attempt does not yet tell us whether Wine or the Windows launcher can run. See [Marco 3](docs/marco-3-launcher.md).
+
+Separately, the C++ lab now loads original synthetic PE32 fixtures into simulated memory without executing them. See the [PE32 loader experiment and reproduction](docs/marco-3-carregador-pe32.md).
+
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and [IP-POLICY.md](IP-POLICY.md) before participating. [LICENSE-CODE.md](LICENSE-CODE.md) applies only to original source code, not documentation, third-party material, or game content.
 
 ## Português
@@ -49,3 +59,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) and [IP-POLICY.md](IP-POLICY.md) before 
 **Projeto comunitário independente de pesquisa e preservação; não oficial e sem vínculo, endosso ou patrocínio da Electronic Arts ou da Maxis.**
 
 O projeto investiga questões de memória, execução ARM64 e gráficos/Metal de The Sims 3 no macOS, especialmente em Macs Apple silicon, sem prometer compatibilidade ou melhorias. O repositório aceita somente documentação, métodos, ferramentas e código originais. Não inclua arquivos do jogo, conteúdo extraído, executáveis modificados, dumps ou capturas brutas. Consulte [CONTRIBUTING.md](CONTRIBUTING.md) e [IP-POLICY.md](IP-POLICY.md).
+
+**Marco atual: abrir o launcher original.** A primeira tentativa foi bloqueada pelo macOS antes de qualquer janela aparecer; o diagnóstico aponta assinatura inválida. O Rosetta está instalado. Veja o [registro do Marco 3](docs/marco-3-launcher.md).
+
+Em paralelo, o laboratório C++ carrega fixtures PE32 sintéticas em memória simulada, sem executá-las. Veja a [reprodução e os limites do experimento de carregamento PE32](docs/marco-3-carregador-pe32.md).
