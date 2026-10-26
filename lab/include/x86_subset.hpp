@@ -10,6 +10,8 @@
 
 namespace sims3lab {
 
+struct LoadedImage;
+
 struct X86State {
     // IA-32 general-purpose register order: EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI.
     std::array<std::uint32_t, 8> registers{};
@@ -30,6 +32,10 @@ public:
                      SyntheticMemory& data,
                      std::uint64_t max_steps = 10000,
                      X86State initial_state = {}) const;
+
+    X86RunResult run_loaded_image(LoadedImage& image,
+                                  std::uint32_t stop_address,
+                                  std::uint64_t max_steps = 10000) const;
 };
 
 }  // namespace sims3lab

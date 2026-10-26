@@ -1,6 +1,6 @@
-# Marco 3 — carregador PE32 em memória simulada
+# Experimento do laboratório — carregador PE32 em memória simulada
 
-**Estado:** concluído. **Execução de código convidado:** nenhuma.
+**Escopo deste experimento:** carregamento sem execução automática do ponto de entrada.
 
 Este experimento acrescenta um carregador C++17 para fixtures PE32 x86 originais, uma memória virtual simulada de 32 bits e o comando `pe32_loader_lab`. Os bytes da fixture são montados pelo código em [pe32_fixture.hpp](../lab/tests/pe32_fixture.hpp); nenhum executável ou recurso do jogo foi usado.
 
@@ -14,7 +14,7 @@ Este experimento acrescenta um carregador C++17 para fixtures PE32 x86 originais
 - Oferece leituras, escritas e busca de instrução com checagem de região, limites e permissões. A memória convidada nunca é convertida em ponteiros do host.
 - Retorna erros estruturados para arquivos ou cabeçalhos inválidos, overflow, seções sobrepostas, arquitetura não suportada, imports ausentes e relocação não suportada.
 
-TLS, imports adiados e load config são recusados explicitamente. O loader não carrega DLLs, não chama funções do sistema e não passa o ponto de entrada ao interpretador.
+TLS, imports adiados e load config são recusados explicitamente. O loader não carrega DLLs nem chama funções do sistema. A execução explícita de uma fixture própria por meio do interpretador está documentada separadamente no [Marco 4](marco-4-execucao-pe32.md).
 
 ## Reprodução
 
@@ -53,6 +53,6 @@ Para manter os testes anteriores verdes, o coletor do mapa estático agora difer
 
 - É um perfil experimental, não uma implementação geral do carregador do Windows. Apenas PE32 x86, seções de 4096 bytes e imagens de até 64 MiB são aceitos.
 - O registro de imports fornece endereços virtuais fixos. Não há carregamento de módulos, resolução de exports encaminhados, API sets, imports vinculados ou chamadas às APIs importadas.
-- Não há execução do ponto de entrada, integração com o interpretador, TLS, processo, stack, heap, permissões dinâmicas ou alocador de endereços concorrente.
+- O carregador não executa automaticamente o ponto de entrada. O Marco 4 conecta uma fixture própria ao interpretador, sem acrescentar TLS, APIs, processo, stack, heap, permissões dinâmicas ou alocador de endereços concorrente.
 - Os resultados provam somente o comportamento da fixture sintética e do modelo de memória implementado; não demonstram que executáveis do jogo carreguem nesse perfil.
 - A recusa de TLS, imports adiados e load config é intencional neste marco; sua preparação pertence a marcos posteriores.
