@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "generated_on": "2026-10-26",
+  "status": "ok",
+  "subject": {
+    "product": "The Sims 3",
+    "version": "1.67.2"
+  },
+  "host": {
+    "mac_architecture": "arm64",
+    "macos_version": "27.0.1"
+  },
+  "launcher": {
+    "format": "Mach-O",
+    "architectures": [
+      "x86_64"
+    ]
+  },
+  "compatibility_layer": {
+    "name": "Wineskin",
+    "version": "2.9.0.6",
+    "wine_version": "4.18",
+    "host_executable_architectures": [
+      "x86",
+      "x86_64"
+    ]
+  },
+  "pe_inventory": {
+    "summary": {
+      "pe_files_scanned": 11,
+      "pe_architecture_counts": {
+        "x86": 11
+      },
+      "status": "scanned"
+    },
+    "key_binaries": [
+      {
+        "role": "game_launcher_executable",
+        "format": "PE",
+        "architecture": "x86",
+        "direct_imports": [
+          "advapi32.dll",
+          "kernel32.dll",
+          "msvcr80.dll",
+          "user32.dll"
+        ]
+      },
+      {
+        "role": "alternate_game_executable",
+        "format": "PE",
+        "architecture": "x86",
+        "direct_imports": [
+          "advapi32.dll",
+          "kernel32.dll",
+          "msvcp80.dll",
+          "msvcr80.dll",
+          "user32.dll"
+        ]
+      },
+      {
+        "role": "game_runtime_executable",
+        "format": "PE",
+        "architecture": "x86",
+        "direct_imports": [
+          "advapi32.dll",
+          "d3d9.dll",
+          "d3dx9_31.dll",
+          "dbghelp.dll",
+          "ddraw.dll",
+          "dsound.dll",
+          "gdi32.dll",
+          "imm32.dll",
+          "iphlpapi.dll",
+          "kernel32.dll",
+          "msvcp80.dll",
+          "msvcr80.dll",
+          "netapi32.dll",
+          "ole32.dll",
+          "oleaut32.dll",
+          "psapi.dll",
+          "setupapi.dll",
+          "shell32.dll",
+          "user32.dll",
+          "usp10.dll",
+          "version.dll",
+          "wininet.dll",
+          "winmm.dll",
+          "ws2_32.dll"
+        ]
+      }
+    ]
+  },
+  "dependencies": {
+    "directly_observed_normal_imports": [
+      "advapi32.dll",
+      "d3d9.dll",
+      "d3dx9_31.dll",
+      "dbghelp.dll",
+      "ddraw.dll",
+      "dsound.dll",
+      "gdi32.dll",
+      "imm32.dll",
+      "iphlpapi.dll",
+      "kernel32.dll",
+      "msvcp80.dll",
+      "msvcr80.dll",
+      "netapi32.dll",
+      "ole32.dll",
+      "oleaut32.dll",
+      "psapi.dll",
+      "setupapi.dll",
+      "shell32.dll",
+      "user32.dll",
+      "usp10.dll",
+      "version.dll",
+      "wininet.dll",
+      "winmm.dll",
+      "ws2_32.dll"
+    ],
+    "directx9_imports": [
+      "d3d9.dll",
+      "d3dx9_31.dll"
+    ],
+    "runtime_dynamic_or_delay_loaded_modules": "unknown; static normal-import inspection cannot determine runtime loads"
+  },
+  "signature": {
+    "status": "invalid",
+    "assessment": "rejected",
+    "findings": [
+      "sealed_info_plist_mismatch",
+      "sealed_resources_mismatch"
+    ]
+  },
+  "failure_records": {
+    "source_scope": "local macOS DiagnosticReports only",
+    "matching_record_count": 0,
+    "summary_categories": {},
+    "raw_contents_included": false,
+    "scan_available": true
+  },
+  "evidence": {
+    "facts": [
+      "The supplied application bundle was found and inspected without launching it.",
+      "The bundle metadata reports game version 1.67.2.",
+      "The host reports ARM64 while the bundle launcher is x86_64.",
+      "Bundle metadata identifies Wineskin 2.9.0.6.",
+      "The bundled Wine support library identifies itself as Wine 4.18; Wine executables were not run.",
+      "Bundled Wine host executable architectures are x86, x86_64.",
+      "The game launcher executable is a 32-bit x86 PE executable.",
+      "The alternate game executable is a 32-bit x86 PE executable.",
+      "The game runtime executable is a 32-bit x86 PE executable.",
+      "DirectX 9 DLLs appear in the normal PE import table of inspected game executables.",
+      "Strict macOS code-signature verification failed for the application bundle.",
+      "The verifier reported that the sealed Info.plist does not match the signed bundle state.",
+      "The verifier reported that the sealed resource directory does not match the signed bundle state.",
+      "macOS execution policy assessment rejected the application bundle.",
+      "No matching local DiagnosticReports records were found for the recognized launcher/game processes."
+    ],
+    "hypotheses": [
+      "Launching this Intel-only wrapper on Apple silicon may require Rosetta 2; availability and a real launch were not tested.",
+      "The signature/seal failure may prevent macOS from launching the wrapper; the denial path was not exercised in this read-only scan."
+    ],
+    "pending_checks": [
+      "Check whether Rosetta 2 is available and whether the bundled x86/x86_64 Wine components can run the 32-bit Windows executable on this macOS release.",
+      "Correlate the signature failure with a fresh, sanitized launch-services or diagnostic record during a separately authorized execution test."
+    ]
+  },
+  "privacy": {
+    "absolute_paths_included": false,
+    "identifiers_included": false,
+    "raw_failure_records_included": false,
+    "game_content_included": false
+  }
+}

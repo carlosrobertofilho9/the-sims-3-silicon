@@ -32,6 +32,12 @@ These are research questions, not promised outcomes.
 4. **Investigate graphics and Metal:** measure observable behavior and bottlenecks; explore ideas in a separate original test harness with synthetic or openly licensed assets.
 5. **Review findings:** validate original tools, report limitations, and update the roadmap based on evidence.
 
+### Marco 0 — baseline ARM64 (2026-10-26)
+
+The installed 1.67.2 bundle was inspected read-only. On the inspected ARM64 Mac, its Wineskin launcher is x86_64; the bundled Wine support files identify Wine 4.18 and include x86 and x86_64 host executables. The three principal Windows executables in the base game directory are 32-bit x86 PE files. The game runtime executable directly imports `d3d9.dll` and `d3dx9_31.dll`, establishing DirectX 9 imports. Strict code-signature verification fails: the sealed `Info.plist` mismatches, and macOS execution assessment reports a sealed resource-directory mismatch. No matching records were found in local DiagnosticReports. This does not establish the exact launch failure or runtime compatibility.
+
+An original Python diagnostic and synthetic ARM64 memory-boundary lab make this baseline reproducible. See [Marco 0: evidências e reprodução](docs/marco-0-arm64.md) and the sanitized [baseline report](docs/marco-0-diagnostico.json). The next ARM64 checks are Rosetta availability, the 32-bit Windows-on-Wine path on the current macOS release, and a separately controlled launch with sanitized failure evidence.
+
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and [IP-POLICY.md](IP-POLICY.md) before participating. [LICENSE-CODE.md](LICENSE-CODE.md) applies only to original source code, not documentation, third-party material, or game content.
 
 ## Português

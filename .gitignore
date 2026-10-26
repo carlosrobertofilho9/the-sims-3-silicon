@@ -8,6 +8,8 @@
 *.swp
 *.swo
 *.xcuserstate
+__pycache__/
+*.py[cod]
 
 # Build products and generated binaries
 build/
