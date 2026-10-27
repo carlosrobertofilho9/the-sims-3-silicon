@@ -50,7 +50,7 @@ The static map for the three original Windows executables is complete. See [Marc
 
 The goal is to make the original launcher window appear; the game does not need to start yet. Our first attempt was rejected by macOS before any window appeared. The local diagnostic reports an invalid app signature, while Rosetta is installed. This attempt does not yet tell us whether Wine or the Windows launcher can run. See [Marco 3](docs/marco-3-launcher.md).
 
-Separately, the C++ lab now loads and interprets original synthetic PE32 fixtures in simulated memory. This exercises the documented x86 subset on ARM64 without loading or running game code. See the [PE32 loader experiment](docs/lab-carregador-pe32.md) and [Marco 4 execution experiment](docs/marco-4-execucao-pe32.md).
+Separately, the C++ lab loads and interprets original synthetic PE32 fixtures in simulated memory. Marco 5 adds a guarded stack, internal calls, and synthetic cdecl/stdcall imports; no game code is loaded or run. See the [PE32 loader experiment](docs/lab-carregador-pe32.md), [Marco 4 execution experiment](docs/marco-4-execucao-pe32.md), and [Marco 5 calls experiment](docs/marco-5-stack-chamadas-imports.md).
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and [IP-POLICY.md](IP-POLICY.md) before participating. [LICENSE-CODE.md](LICENSE-CODE.md) applies only to original source code, not documentation, third-party material, or game content.
 
@@ -62,4 +62,4 @@ O projeto investiga questões de memória, execução ARM64 e gráficos/Metal de
 
 **Marco atual: abrir o launcher original.** A primeira tentativa foi bloqueada pelo macOS antes de qualquer janela aparecer; o diagnóstico aponta assinatura inválida. O Rosetta está instalado. Veja o [registro do Marco 3](docs/marco-3-launcher.md).
 
-Em paralelo, o laboratório C++ carrega e interpreta fixtures PE32 próprias em memória simulada. Isso exercita o subconjunto documentado de x86 em ARM64, sem carregar ou executar código do jogo. Veja o [experimento do carregador PE32](docs/lab-carregador-pe32.md) e o [Marco 4 de execução](docs/marco-4-execucao-pe32.md).
+Em paralelo, o laboratório C++ carrega e interpreta fixtures PE32 próprias em memória simulada. O Marco 5 acrescenta stack com guardas, chamadas internas e imports sintéticos `cdecl`/`stdcall`, sem carregar ou executar código do jogo. Veja o [experimento do carregador PE32](docs/lab-carregador-pe32.md), o [Marco 4 de execução](docs/marco-4-execucao-pe32.md) e o [Marco 5 de chamadas](docs/marco-5-stack-chamadas-imports.md).

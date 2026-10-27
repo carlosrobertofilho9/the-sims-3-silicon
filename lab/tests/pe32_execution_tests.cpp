@@ -1,4 +1,5 @@
 #include "pe32_execution_fixture.hpp"
+#include "pe32_calls_fixture.hpp"
 #include "pe32_loader.hpp"
 #include "x86_subset.hpp"
 
@@ -10,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace {
 
@@ -26,6 +28,25 @@ sims3lab::LoadedImage load(std::optional<std::uint32_t> base = std::nullopt) {
     auto result = sims3lab::load_pe32(pe32_execution_fixture::make_image(), base);
     if (!result) {
         throw std::runtime_error("execution fixture did not load: " + result.error->message);
+    }
+    return std::move(*result.image);
+}
+
+sims3lab::LoadedImage load_calls(std::uint32_t base = pe32_calls_fixture::preferred_base) {
+    auto result = sims3lab::load_pe32(pe32_calls_fixture::make_image(), base,
+        [](std::string_view module, const sims3lab::ImportSymbol& symbol)
+            -> std::optional<std::uint32_t> {
+            if (module != "synthetic.dll") return std::nullopt;
+            if (!symbol.by_ordinal && symbol.name == "AddTwo") {
+                return pe32_calls_fixture::name_import_address;
+            }
+            if (symbol.by_ordinal && symbol.ordinal == 7) {
+                return pe32_calls_fixture::ordinal_import_address;
+            }
+            return std::nullopt;
+        });
+    if (!result) {
+        throw std::runtime_error("calls fixture did not load: " + result.error->message);
     }
     return std::move(*result.image);
 }
@@ -47,6 +68,12 @@ void patch_word(sims3lab::LoadedImage& image, std::uint32_t address, std::uint32
     };
     require(image.memory.loader_patch(address, bytes.data(), bytes.size()),
             "test can patch fixture instruction operand");
+}
+
+void patch_bytes(sims3lab::LoadedImage& image, std::uint32_t address,
+                 const std::vector<std::uint8_t>& bytes) {
+    require(image.memory.loader_patch(address, bytes.data(), bytes.size()),
+            "test can patch fixture bytes");
 }
 
 void executes_at_all_bases() {
@@ -155,6 +182,170 @@ void reports_decode_and_limit_failures() {
             "failure branch reaches the self-loop in virtual code");
 }
 
+void executes_calls_imports_and_stack_at_all_bases() {
+    const sims3lab::X86SubsetInterpreter interpreter;
+    for (const auto base : {pe32_calls_fixture::preferred_base, 0x00500000u, 0x00300000u}) {
+        auto image = load_calls(base);
+        require(image.imports.size() == 2, "calls fixture resolves a name and ordinal import");
+        require(read_word(image.memory, base + pe32_calls_fixture::name_iat_rva) ==
+                    pe32_calls_fixture::name_import_address,
+                "name IAT contains its synthetic virtual address");
+        require(read_word(image.memory, base + pe32_calls_fixture::ordinal_iat_rva) ==
+                    pe32_calls_fixture::ordinal_import_address,
+                "ordinal IAT contains its synthetic virtual address");
+        require(read_word(image.memory, base + pe32_calls_fixture::name_iat_operand_rva) ==
+                    base + pe32_calls_fixture::name_iat_rva,
+                "absolute name-IAT operand is relocated");
+        require(read_word(image.memory, base + pe32_calls_fixture::ordinal_iat_operand_rva) ==
+                    base + pe32_calls_fixture::ordinal_iat_rva,
+                "absolute ordinal-IAT operand is relocated");
+        require(read_word(image.memory, base + pe32_calls_fixture::result_operand_rva) ==
+                    base + pe32_calls_fixture::result_rva,
+                "absolute result operand is relocated");
+
+        std::vector<std::vector<std::uint32_t>> name_arguments;
+        std::vector<std::vector<std::uint32_t>> ordinal_arguments;
+        sims3lab::X86RunOptions options;
+        options.enable_stack = true;
+        options.imports.push_back({pe32_calls_fixture::name_import_address, 2,
+            sims3lab::X86CallingConvention::cdecl,
+            [&name_arguments](const std::vector<std::uint32_t>& arguments) {
+                name_arguments.push_back(arguments);
+                return arguments.at(0) + arguments.at(1);
+            }});
+        options.imports.push_back({pe32_calls_fixture::ordinal_import_address, 2,
+            sims3lab::X86CallingConvention::stdcall,
+            [&ordinal_arguments](const std::vector<std::uint32_t>& arguments) {
+                ordinal_arguments.push_back(arguments);
+                return arguments.at(0) + arguments.at(1);
+            }});
+
+        const auto result = interpreter.run_loaded_image(
+            image, base + pe32_calls_fixture::stop_rva, options);
+        require(result.halted && result.error.empty(), "calls fixture reaches stop address");
+        require(read_word(image.memory, base + pe32_calls_fixture::result_rva) == 42,
+                "calls fixture stores 42 in its data section");
+        require(result.state.registers[0] == 42, "synthetic imports return 42 in EAX");
+        require(result.state.registers[1] == 0x11111111u &&
+                    result.state.registers[2] == 0x22222222u &&
+                    result.state.registers[3] == 0x33333333u &&
+                    result.state.registers[5] == 0x55555555u &&
+                    result.state.registers[6] == 0x66666666u &&
+                    result.state.registers[7] == 0x77777777u,
+                "synthetic handlers preserve all non-EAX registers");
+        require(result.state.zero_flag, "synthetic handlers preserve ZF for the fixture checks");
+        require(result.state.registers[4] == 0x7FF10000u,
+                "cdecl caller cleanup and stdcall callee cleanup restore ESP");
+        require(result.state.instruction_pointer == base + pe32_calls_fixture::stop_rva,
+                "EIP reaches the explicit stop address");
+        require(result.state.instruction_count == 23,
+                "each CALL, including both synthetic imports, counts once");
+        require(name_arguments.size() == 1 && name_arguments[0] ==
+                    std::vector<std::uint32_t>({40, 2}),
+                "cdecl import receives arguments in declared order");
+        require(ordinal_arguments.size() == 1 && ordinal_arguments[0] ==
+                    std::vector<std::uint32_t>({42, 0}),
+                "stdcall ordinal import receives arguments in declared order");
+    }
+}
+
+void verifies_stack_mapping_and_guards() {
+    const sims3lab::X86SubsetInterpreter interpreter;
+    auto image = load_calls();
+    sims3lab::X86RunOptions options;
+    options.enable_stack = true;
+    const auto result = interpreter.run_loaded_image(image, image.entry_point, options);
+    require(result.halted && result.state.registers[4] == 0x7FF10000u,
+            "stack mode initializes ESP at the top and honors the stop address");
+    require(image.memory.is_mapped(0x7FF00000u, 64u * 1024u),
+            "64 KiB stack is mapped at its fixed guest address");
+    require(image.memory.is_readable(0x7FF00000u, 64u * 1024u) &&
+                image.memory.is_writable(0x7FF00000u, 64u * 1024u),
+            "stack has read and write permissions");
+    require(!image.memory.is_executable(0x7FF00000u, 64u * 1024u),
+            "stack does not have execute permission");
+    require(!image.memory.is_mapped(0x7FEFF000u, 4096) &&
+                !image.memory.is_mapped(0x7FF10000u, 4096),
+            "one-page guards remain unmapped on both sides of the stack");
+    std::uint8_t instruction = 0;
+    require(!image.memory.fetch_instruction(0x7FF00000u, &instruction, 1),
+            "instruction fetch from the stack is denied");
+
+    auto empty_stack = load_calls();
+    patch_bytes(empty_stack, empty_stack.entry_point, {0x58});  // POP EAX
+    const auto empty_pop = interpreter.run_loaded_image(
+        empty_stack, empty_stack.entry_point + 1, options);
+    require(!empty_pop.halted && empty_pop.error == "read from unmapped memory" &&
+                empty_pop.state.registers[4] == 0x7FF10000u,
+            "POP from an empty stack stops at the unmapped upper guard");
+
+    auto conflicting = load_calls(0x7FEFF000u);
+    const auto conflict_result = interpreter.run_loaded_image(
+        conflicting, conflicting.entry_point, options);
+    require(!conflict_result.halted &&
+                conflict_result.error == "stack or guard range conflicts with existing memory",
+            "stack mapping rejects an image occupying a guard page");
+}
+
+void reports_call_and_stack_failures() {
+    const sims3lab::X86SubsetInterpreter interpreter;
+    sims3lab::X86RunOptions options;
+    options.enable_stack = true;
+
+    auto image = load_calls();
+    patch_bytes(image, image.entry_point, {0x50});
+    const auto legacy_result = interpreter.run_loaded_image(
+        image, image.entry_point + 1);
+    require(!legacy_result.halted && legacy_result.error == "write to unmapped memory" &&
+                legacy_result.state.registers[4] == 0,
+            "the earlier loaded-image interface still starts ESP at zero without mapping a stack");
+
+    image = load_calls();
+    const auto target = image.base + 0x6000u;
+    const auto next = image.base + pe32_calls_fixture::internal_call_rva + 5u;
+    patch_word(image, image.base + pe32_calls_fixture::internal_call_operand_rva,
+               target - next);
+    auto result = interpreter.run_loaded_image(image,
+        image.base + pe32_calls_fixture::stop_rva, options);
+    require(!result.halted && result.error == "instruction fetch from unmapped memory",
+            "CALL to an unmapped destination is reported");
+    require(result.state.instruction_count == 8,
+            "a decoded direct CALL counts before its invalid target fetch");
+
+    image = load_calls();
+    result = interpreter.run_loaded_image(image,
+        image.base + pe32_calls_fixture::stop_rva, options);
+    require(!result.halted && result.error == "synthetic import has no handler",
+            "calling a resolved import without a handler fails explicitly");
+
+    image = load_calls();
+    options.imports = {
+        {pe32_calls_fixture::name_import_address, 2,
+         sims3lab::X86CallingConvention::cdecl,
+         [](const std::vector<std::uint32_t>&) { return 41u; }},
+        {pe32_calls_fixture::ordinal_import_address, 2,
+         sims3lab::X86CallingConvention::stdcall,
+         [](const std::vector<std::uint32_t>&) { return 42u; }},
+    };
+    result = interpreter.run_loaded_image(image,
+        image.base + pe32_calls_fixture::stop_rva, options, 40);
+    require(!result.halted && result.error == "execution limit exceeded" &&
+                result.state.instruction_pointer == image.base + pe32_calls_fixture::stop_rva - 2 &&
+                result.state.instruction_count == 40,
+            "fixture mismatch enters its bounded failure loop rather than the stop address");
+
+    image = load_calls();
+    patch_bytes(image, image.entry_point, {0x50, 0xEB, 0xFD});
+    result = interpreter.run_loaded_image(image,
+        image.base + pe32_calls_fixture::stop_rva, options, 32770);
+    require(!result.halted && result.error == "write to unmapped memory",
+            "repeated pushes stop at the unmapped lower stack guard");
+    require(result.state.registers[4] == 0x7FF00000u,
+            "a failed boundary push leaves ESP at the last valid stack address");
+    require(result.state.instruction_count == 32768,
+            "stack boundary failure does not retire the failing PUSH");
+}
+
 }  // namespace
 
 int main() {
@@ -162,6 +353,9 @@ int main() {
         executes_at_all_bases();
         enforces_virtual_memory_permissions();
         reports_decode_and_limit_failures();
+        executes_calls_imports_and_stack_at_all_bases();
+        verifies_stack_mapping_and_guards();
+        reports_call_and_stack_failures();
         std::cout << "pe32_execution_checks=" << checks << " passed\n";
         return 0;
     } catch (const std::exception& error) {

@@ -58,6 +58,7 @@ private:
 
     friend struct Pe32LoadResult;
     friend class Pe32Loader;
+    friend class X86SubsetInterpreter;
 };
 
 struct ImportSymbol {

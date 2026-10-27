@@ -146,6 +146,60 @@ int main() {
     require(result.halted && result.state.instruction_pointer == 2,
             "branch to exact end of program halts normally");
 
+    SyntheticMemory stack_memory(256);
+    X86State stack_state;
+    stack_state.registers[4] = 256;
+    const std::vector<std::uint8_t> nested_calls{
+        0xE8, 2, 0, 0, 0,       // CALL outer at 7
+        0xEB, 0x0C,             // Skip both routines after return
+        0xE8, 1, 0, 0, 0,       // outer: CALL inner at 13
+        0xC3,                   // outer: RET
+        0xB8, 42, 0, 0, 0,      // inner: MOV EAX,42
+        0xC3,                   // inner: RET
+    };
+    result = run(nested_calls, stack_memory, 10000, stack_state);
+    require(result.halted && result.state.registers[0] == 42,
+            "nested relative CALL instructions return through both routines");
+    require(result.state.registers[4] == 256 && result.state.instruction_count == 6,
+            "nested CALL and RET restore the original ESP and count each instruction");
+
+    stack_state = {};
+    stack_state.registers[4] = 256;
+    const std::vector<std::uint8_t> ret_with_cleanup{
+        0x68, 0x78, 0x56, 0x34, 0x12, // PUSH imm32 argument
+        0xE8, 2, 0, 0, 0,             // CALL function at 12
+        0xEB, 8,                      // Skip function after it returns
+        0xB8, 42, 0, 0, 0,            // Function: MOV EAX,42
+        0xC2, 4, 0,                   // RET 4 removes the argument
+    };
+    result = run(ret_with_cleanup, stack_memory, 10000, stack_state);
+    require(result.halted && result.state.registers[0] == 42 &&
+                result.state.registers[4] == 256,
+            "RET imm16 removes its return address and caller argument");
+
+    stack_state = {};
+    stack_state.registers[4] = 256;
+    result = run({0x54, 0x58, 0x54, 0x5C}, stack_memory, 10000, stack_state);
+    require(result.halted && result.state.registers[0] == 256 &&
+                result.state.registers[4] == 256,
+            "PUSH ESP captures the old value and POP ESP loads the popped value");
+
+    stack_state = {};
+    stack_state.registers[4] = 8;
+    result = run({0x83, 0xC4, 0xF8}, stack_memory, 10000, stack_state);
+    require(result.halted && result.state.registers[4] == 0 && result.state.zero_flag,
+            "ADD ESP,imm8 sign-extends its immediate and updates ZF");
+    expect_error({0x83, 0xC0, 1}, stack_memory, "unsupported opcode");
+    expect_error({0xFF, 0xD0}, stack_memory, "unsupported opcode");
+
+    SyntheticMemory tiny_stack(4);
+    stack_state = {};
+    stack_state.registers[4] = 4;
+    result = run({0x50, 0x50}, tiny_stack, 10000, stack_state);
+    require(!result.halted && result.error == "memory access out of range" &&
+                result.state.instruction_count == 1 && result.state.registers[4] == 0,
+            "PUSH fails cleanly when it crosses the synthetic memory boundary");
+
     std::cout << "x86_subset_checks=" << checks << " passed\n";
     return 0;
 }
